@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لعبة الذاكرة الجماعية - نظام الطرد والتصفير الشامل</title>
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            --panel-bg: rgba(30, 41, 59, 0.7);
+            --card-back: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            --card-front: #ffffff;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --danger: #ef4444;
+            --danger-hover: #dc2626;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --warning-hover: #d97706;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: var(--bg-gradient);
+            color: var(--text-main);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            background: var(--panel-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 24px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            text-align: center;
+            color: #fff;
+            margin-bottom: 25px;
+            font-size: 2.5rem;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        /* الشاشات */
+        .screen { display: none; animation: fadeIn 0.5s ease; }
+        .screen.active { display: block; }
+
+        /* نموذج الدخول والمجلس */
+        .form-group {
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+        label { margin-bottom: 8px; font-weight: 600; color: var(--text-muted); }
+        
+        input {
+            padding: 14px;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            font-size: 16px;
+            color: white;
+            transition: all 0.3s;
+        }
+        input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
+        }
+        input.input-error {
+            border-color: var(--danger) !important;
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.3) !important;
+            animation: shake 0.4s ease-in-out;
+        }
+
+        button {
+            padding: 14px 24px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+        button:hover { background: var(--primary-hover); transform: translateY(-1px); }
+        button.btn-danger { background: var(--danger); }
+        button.btn-danger:hover { background: var(--danger-hover); }
+        button.btn-warning { background: var(--warning); }
+        button.btn-warning:hover { background: var(--warning-hover); }
+
+        .lobby-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-top: 20px;
+        }
+        @media (max-width: 768px) { .lobby-layout { grid-template-columns: 1fr; } }
+
+        .card-panel {
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 25px;
+            border-radius: 16px;
+            background: rgba(15, 23, 42, 0.4);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        /* قسم الغرف المتاحة */
+        .existing-rooms-section {
+            margin-top: 30px;
+            background: rgba(15, 23, 42, 0.3);
+            padding: 20px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .rooms-header-area {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .rooms-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+        }
+        .room-item {
+            background: rgba(30, 41, 59, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            animation: slideUp 0.3s ease;
+            transition: all 0.2s;
+        }
+        .room-item:hover {
+            border-color: var(--primary);
+            transform: translateY(-2px);
+        }
+        .room-info h4 { color: #fff; margin-bottom: 4px; }
+        .room-info p { font-size: 13px; color: var(--text-muted); }
+
+        /* واجهة اللعبة والشات */
+        .game-layout {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 25px;
+        }
+        @media (max-width: 1024px) { .game-layout { grid-template-columns: 1fr; } }
+
+        .room-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(15, 23, 42, 0.5);
+            padding: 15px 20px;
+            border-radius: 16px;
+            margin-bottom: 20px;
+        }
+
+        .players-list {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        .player-badge {
+            padding: 10px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 30px;
+            font-weight: bold;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .player-badge.active-turn {
+            background: rgba(16, 185, 129, 0.2);
+            color: #34d399;
+            border-color: var(--success);
+            animation: pulse 2s infinite;
+        }
+
+        /* شبكة الـ 32 بطاقة */
+        .game-grid {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 10px;
+        }
+        @media (max-width: 768px) { .game-grid { grid-template-columns: repeat(4, 1fr); } }
+
+        .memory-card {
+            aspect-ratio: 1;
+            background: var(--card-back);
+            border-radius: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 28px;
+            color: transparent;
+            cursor: pointer;
+            user-select: none;
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), background 0.3s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+        .memory-card.flipped {
+            background: var(--card-front);
+            color: #000;
+            transform: rotateY(180deg);
+        }
+        .memory-card.matched {
+            background: rgba(16, 185, 129, 0.1);
+            border: 2px solid var(--success);
+            color: var(--success);
+            cursor: not-allowed;
+            transform: scale(0.95);
+            box-shadow: none;
+        }
+
+        /* نظام الدردشة */
+        .chat-panel {
+            background: rgba(15, 23, 42, 0.5);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            flex-direction: column;
+            height: 500px;
+        }
+        .chat-header { padding: 15px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); font-weight: bold; }
+        .chat-messages { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        .chat-msg { background: rgba(255, 255, 255, 0.05); padding: 8px 12px; border-radius: 12px; max-width: 85%; word-break: break-word; font-size: 14px; }
+        .chat-msg .sender { font-weight: bold; color: var(--primary); margin-bottom: 2px; font-size: 12px; }
+        .chat-input-area { padding: 12px; display: flex; gap: 8px; border-top: 1px solid rgba(255, 255, 255, 0.1); }
+        .chat-input-area input { flex: 1; padding: 10px; font-size: 14px; }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-10px); }
+            40%, 80% { transform: translateX(10px); }
+        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🎮 لعبة الذاكرة الجماعية</h1>
+    
+    <div id="lobby-screen" class="screen active">
+        <div class="form-group">
+            <label for="username">إسم اللاعب (مطلوب للدخول):</label>
+            <input type="text" id="username" placeholder="أدخل اسمك المميز هنا...">
+        </div>
+        
+        <div class="lobby-layout">
+            <div class="card-panel">
+                <div>
+                    <h3>إنشاء غرفة جديدة</h3>
+                    <p style="color: var(--text-muted); margin-bottom: 15px;">أنشئ غرفتك الخاصة وتحدّى أصدقائك فوراً.</p>
+                </div>
+                <button id="btn-create">إنشاء غرفة (Create Room)</button>
+            </div>
+            <div class="card-panel">
+                <div>
+                    <h3>الدخول عبر كود الغرفة</h3>
+                    <div class="form-group">
+                        <input type="text" id="room-code-input" placeholder="أدخل كود الغرفة...">
+                    </div>
+                </div>
+                <button id="btn-join">دخول عبر الكود (Join Room)</button>
+            </div>
+        </div>
+
+        <div class="existing-rooms-section">
+            <div class="rooms-header-area">
+                <h3>🌐 الغرف المتاحة حالياً أونلاين:</h3>
+                <button id="btn-clean-server" class="btn-danger" style="padding: 8px 16px; font-size: 14px;">🧹 تصفير السيرفر وطرد الجميع</button>
+            </div>
+            <div class="rooms-grid" id="rooms-list-container"></div>
+        </div>
+    </div>
+
+    <div id="game-screen" class="screen">
+        <div class="room-header">
+            <h2>كود الغرفة: <span id="display-room-code" style="color:var(--primary);"></span></h2>
+            <div style="display: flex; gap: 10px;">
+                <button id="btn-start-game" style="display:none; background-color: var(--success);">بدء اللعبة</button>
+                <button id="btn-leave" class="btn-danger">خروج من الغرفة</button>
+            </div>
+        </div>
+
+        <div id="turn-indicator" style="font-weight: bold; margin-bottom: 20px; text-align: center; color: var(--primary); font-size: 1.2rem;"></div>
+
+        <div class="game-layout">
+            <div>
+                <h3 style="margin-bottom: 10px;">اللاعبين والنقاط:</h3>
+                <div class="players-list" id="players-container"></div>
+                
+                <div id="waiting-message" style="display:none; text-align: center; padding: 40px; background: rgba(255,255,255,0.02); border-radius: 16px; margin-top: 20px;">
+                    ⏳ بانتظار منشئ الغرفة لبدء اللعبة...
+                </div>
+
+                <div class="game-grid" id="game-grid"></div>
+            </div>
+
+            <div class="chat-panel">
+                <div class="chat-header">💬 الدردشة الحية</div>
+                <div class="chat-messages" id="chat-messages"></div>
+                <div class="chat-input-area">
+                    <input type="text" id="chat-input" placeholder="اكتب رسالة للجميع...">
+                    <button id="btn-send-chat">إرسال</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+    import { getDatabase, ref, set, push, onValue, update, get, remove, off } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyBm-wdKfDeaujcjL0YzRAomBrKruFGINkY",
+        authDomain: "husainsdf-395db.firebaseapp.com",
+        projectId: "husainsdf-395db",
+        storageBucket: "husainsdf-395db.firebasestorage.app",
+        messagingSenderId: "438927406290",
+        appId: "1:438927406290:web:35909ca4f564050217690b",
+        measurementId: "G-G2DR7ZLK6Q"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    let playerId = "player_" + Math.random().toString(36).substr(2, 9);
+    let username = "";
+    let currentRoomId = null;
+    let roomRef = null;
+    let isHost = false;
+    let localRoomData = null;
+
+    // العناصر الرسومية
+    const lobbyScreen = document.getElementById('lobby-screen');
+    const gameScreen = document.getElementById('game-screen');
+    const btnCreate = document.getElementById('btn-create');
+    const btnJoin = document.getElementById('btn-join');
+    const btnLeave = document.getElementById('btn-leave');
+    const btnCleanServer = document.getElementById('btn-clean-server');
+    const usernameInput = document.getElementById('username');
+    const roomCodeInput = document.getElementById('room-code-input');
+    const displayRoomCode = document.getElementById('display-room-code');
+    const btnStartGame = document.getElementById('btn-start-game');
+    const waitingMessage = document.getElementById('waiting-message');
+    const playersContainer = document.getElementById('players-container');
+    const gameGrid = document.getElementById('game-grid');
+    const turnIndicator = document.getElementById('turn-indicator');
+    const chatMessages = document.getElementById('chat-messages');
+    const chatInput = document.getElementById('chat-input');
+    const btnSendChat = document.getElementById('btn-send-chat');
+    const roomsListContainer = document.getElementById('rooms-list-container');
+
+    const CARD_SYMBOLS = [
+        '🍎', '🍌', '🍇', '🍊', '🍉', '🍓', '🍒', '🍍',
+        '🥝', '🥑', '🥦', '🥕', '🌽', '🌶️', '🍄', '🧀'
+    ];
+
+    listenToAllRooms();
+
+    btnCreate.addEventListener('click', createRoom);
+    btnJoin.addEventListener('click', joinRoom);
+    btnStartGame.addEventListener('click', startGame);
+    btnLeave.addEventListener('click', leaveRoom);
+    btnCleanServer.addEventListener('click', cleanServer);
+    btnSendChat.addEventListener('click', sendChatMessage);
+    chatInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') sendChatMessage(); });
+
+    function checkAndValidateName() {
+        username = usernameInput.value.trim();
+        if (!username) {
+            usernameInput.classList.add('input-error');
+            setTimeout(() => { usernameInput.classList.remove('input-error'); }, 400);
+            return false;
+        }
+        return true;
+    }
+
+    // وظيفة تصفير السيرفر الشامل ومسح كل شيء مع طرد العبين
+    async function cleanServer() {
+        const confirmWipe = confirm("⚠️ تحذير خطير: هذا الخيار سيمسح جميع الغرف أونلاين فوراً، وسيتم طرد وإخراج كافة اللاعبين المتواجدين بداخلها إلى القائمة الرئيسية! هل أنت متأكد؟");
+        if (!confirmWipe) return;
+
+        const roomsRef = ref(db, 'rooms');
+        try {
+            await remove(roomsRef);
+            alert("🧹 تم تصفير السيرفر بالكامل وحذف جميع الغرف، وتم طرد كافة اللاعبين بنجاح!");
+        } catch (error) {
+            console.error("Error wiping server:", error);
+            alert("حدث خطأ أثناء محاولة تصفير قاعدة البيانات.");
+        }
+    }
+
+    // دالة إجبارية لإخراج العميل محلياً دون تعديل فايربيس (لأن الغرفة حُذفت بالفعل)
+    function forceKickPlayerOut() {
+        if (roomRef) off(roomRef);
+        if (currentRoomId) off(ref(db, `rooms/${currentRoomId}/messages`));
+
+        currentRoomId = null;
+        roomRef = null;
+        isHost = false;
+        localRoomData = null;
+        gameGrid.innerHTML = "";
+        turnIndicator.innerText = "";
+        
+        gameScreen.classList.remove('active');
+        lobbyScreen.classList.add('active');
+        alert("🚨 لقد تم تصفير السيرفر أو حذف الغرفة من قبل الإدارة، تم إعادتك للمجلس الرئيسي!");
+    }
+
+    function listenToAllRooms() {
+        const roomsRef = ref(db, 'rooms');
+        onValue(roomsRef, (snapshot) => {
+            roomsListContainer.innerHTML = "";
+            const rooms = snapshot.val();
+            
+            if (!rooms || Object.keys(rooms).length === 0) {
+                roomsListContainer.innerHTML = `<p style="color: var(--text-muted); grid-column: 1/-1; text-align: center;">لا توجد غرف مفتوحة حالياً، كن أول من ينشئ غرفة!</p>`;
+                return;
+            }
+
+            let activeRoomsCount = 0;
+            Object.keys(rooms).forEach(rId => {
+                const room = rooms[rId];
+                const playersCount = Object.keys(room.players || {}).length;
+
+                if (room.status === "waiting" && playersCount > 0) {
+                    activeRoomsCount++;
+                    const hostName = room.players[room.hostId]?.name || "لاعب";
+
+                    const roomCard = document.createElement('div');
+                    roomCard.className = 'room-item';
+                    roomCard.innerHTML = `
+                        <div class="room-info">
+                            <h4>غرفة: ${rId}</h4>
+                            <p>المضيف: ${hostName} | اللاعبين: ${playersCount}/4</p>
+                        </div>
+                        <button class="btn-join-direct" style="padding: 6px 12px; font-size: 13px;">دخول</button>
+                    `;
+
+                    roomCard.querySelector('.btn-join-direct').addEventListener('click', () => {
+                        roomCodeInput.value = rId;
+                        joinRoom();
+                    });
+
+                    roomsListContainer.appendChild(roomCard);
+                }
+            });
+
+            if (activeRoomsCount === 0) {
+                roomsListContainer.innerHTML = `<p style="color: var(--text-muted); grid-column: 1/-1; text-align: center;">لا توجد غرف بانتظار لاعبين حالياً.</p>`;
+            }
+        });
+    }
+
+    async function createRoom() {
+        if (!checkAndValidateName()) return;
+
+        currentRoomId = Math.random().toString(36).substr(2, 5).toUpperCase();
+        isHost = true;
+        roomRef = ref(db, 'rooms/' + currentRoomId);
+
+        const initialRoomState = {
+            roomId: currentRoomId,
+            status: "waiting",
+            hostId: playerId,
+            turn: playerId,
+            turnOrder: [playerId],
+            flippedIndexes: [-1, -1],
+            players: {
+                [playerId]: { id: playerId, name: username, score: 0 }
+            }
+        };
+
+        await set(roomRef, initialRoomState);
+        showGameScreen();
+        listenRoomUpdates();
+    }
+
+    async function joinRoom() {
+        if (!checkAndValidateName()) return;
+
+        const code = roomCodeInput.value.trim().toUpperCase();
+        if (!code) return alert("الرجاء إدخال كود الغرفة أو اختيار غرفة من القائمة!");
+
+        currentRoomId = code;
+        roomRef = ref(db, 'rooms/' + currentRoomId);
+
+        const snapshot = await get(roomRef);
+        if (!snapshot.exists()) return alert("عذراً، الغرفة غير موجودة!");
+
+        const roomData = snapshot.val();
+        const currentPlayersCount = Object.keys(roomData.players || {}).length;
+        if (currentPlayersCount >= 4) return alert("الغرفة ممتلئة بالكامل!");
+        if (roomData.status !== "waiting") return alert("اللعبة بدأت بالفعل في هذه الغرفة!");
+
+        let updatedTurnOrder = roomData.turnOrder || [];
+        if (!updatedTurnOrder.includes(playerId)) updatedTurnOrder.push(playerId);
+
+        await set(ref(db, `rooms/${currentRoomId}/players/${playerId}`), {
+            id: playerId, name: username, score: 0
+        });
+        await update(roomRef, { turnOrder: updatedTurnOrder });
+
+        isHost = false;
+        showGameScreen();
+        listenRoomUpdates();
+    }
+
+    function showGameScreen() {
+        lobbyScreen.classList.remove('active');
+        gameScreen.classList.add('active');
+        displayRoomCode.innerText = currentRoomId;
+        chatMessages.innerHTML = "";
+
+        if (isHost) {
+            btnStartGame.style.display = "block";
+            waitingMessage.style.display = "none";
+        } else {
+            btnStartGame.style.display = "none";
+            waitingMessage.style.display = "block";
+        }
+    }
+
+    function listenRoomUpdates() {
+        onValue(roomRef, (snapshot) => {
+            const data = snapshot.val();
+            
+            // هنا يكمن السر الحقيقي للطرد الفوري! إذا تم تصفير قاعدة البيانات تصبح الـ data فارغة
+            if (!data) {
+                forceKickPlayerOut();
+                return;
+            }
+            
+            localRoomData = data;
+            renderPlayers(data);
+
+            if (data.status === "playing") {
+                btnStartGame.style.display = "none";
+                waitingMessage.style.display = "none";
+                renderGrid(data.cards, data.flippedIndexes);
+                updateTurnIndicator(data);
+            } else if (data.status === "finished") {
+                announceWinner(data);
+            } else if (data.status === "waiting") {
+                gameGrid.innerHTML = "";
+                if (!isHost) waitingMessage.style.display = "block";
+            }
+        });
+
+        const chatRef = ref(db, `rooms/${currentRoomId}/messages`);
+        onValue(chatRef, (snapshot) => {
+            chatMessages.innerHTML = "";
+            const messages = snapshot.val();
+            if (messages) {
+                Object.values(messages).forEach(msg => {
+                    const msgEl = document.createElement('div');
+                    msgEl.className = 'chat-msg';
+                    msgEl.innerHTML = `<div class="sender">${msg.sender}</div><div>${msg.text}</div>`;
+                    chatMessages.appendChild(msgEl);
+                });
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+        });
+    }
+
+    async function sendChatMessage() {
+        const text = chatInput.value.trim();
+        if (!text) return;
+        
+        const chatRef = ref(db, `rooms/${currentRoomId}/messages`);
+        await push(chatRef, { sender: username, text: text, timestamp: Date.now() });
+        chatInput.value = "";
+    }
+
+    async function leaveRoom() {
+        if (!currentRoomId) return;
+
+        off(roomRef);
+        off(ref(db, `rooms/${currentRoomId}/messages`));
+
+        if (localRoomData) {
+            let updatedPlayers = { ...localRoomData.players };
+            delete updatedPlayers[playerId];
+            let updatedTurnOrder = (localRoomData.turnOrder || []).filter(id => id !== playerId);
+
+            if (isHost || Object.keys(updatedPlayers).length === 0) {
+                await remove(roomRef);
+            } else {
+                let nextTurn = localRoomData.turn;
+                if (localRoomData.turn === playerId && updatedTurnOrder.length > 0) {
+                    nextTurn = updatedTurnOrder[0];
+                }
+                await update(roomRef, {
+                    players: updatedPlayers,
+                    turnOrder: updatedTurnOrder,
+                    turn: nextTurn
+                });
+            }
+        }
+
+        currentRoomId = null;
+        roomRef = null;
+        isHost = false;
+        localRoomData = null;
+        gameGrid.innerHTML = "";
+        turnIndicator.innerText = "";
+        
+        gameScreen.classList.remove('active');
+        lobbyScreen.classList.add('active');
+    }
+
+    function updateTurnIndicator(data) {
+        if (data.turn === playerId) {
+            turnIndicator.innerText = "⭐ دورك الآن! اختر بطاقتين للتحقق من تطابقهما.";
+        } else {
+            const currentTurnPlayerName = data.players[data.turn]?.name || "لاعب آخر";
+            turnIndicator.innerText = `🔄 دور اللاعب الحالي: ${currentTurnPlayerName}`;
+        }
+    }
+
+    function renderPlayers(data) {
+        playersContainer.innerHTML = "";
+        const players = data.players || {};
+        Object.keys(players).forEach(pId => {
+            const player = players[pId];
+            const badge = document.createElement('div');
+            badge.className = `player-badge ${data.turn === pId && data.status === 'playing' ? 'active-turn' : ''}`;
+            badge.innerText = `${player.name}: 🏆 ${player.score} ن`;
+            playersContainer.appendChild(badge);
+        });
+    }
+
+    function startGame() {
+        if (!isHost) return;
+        
+        let deck = [...CARD_SYMBOLS, ...CARD_SYMBOLS];
+        deck = deck.sort(() => Math.random() - 0.5);
+
+        const cardsData = deck.map((symbol, index) => ({
+            id: index, symbol: symbol, isFlipped: false, isMatched: false
+        }));
+
+        update(roomRef, { status: "playing", cards: cardsData, flippedIndexes: [-1, -1] });
+    }
+
+    function renderGrid(cards, flippedIndexes) {
+        gameGrid.innerHTML = "";
+        if (!cards) return;
+
+        cards.forEach((card, index) => {
+            const cardEl = document.createElement('div');
+            cardEl.className = 'memory-card';
+            cardEl.innerText = card.symbol;
+
+            if (card.isMatched) {
+                cardEl.classList.add('matched');
+            } else if (card.isFlipped || flippedIndexes.includes(index)) {
+                cardEl.classList.add('flipped');
+            }
+
+            cardEl.addEventListener('click', () => flipCard(index));
+            gameGrid.appendChild(cardEl);
+        });
+    }
+
+    async function flipCard(index) {
+        if (!localRoomData || localRoomData.status !== "playing") return;
+        if (localRoomData.turn !== playerId) return;
+
+        let flipped = localRoomData.flippedIndexes || [-1, -1];
+        let cards = localRoomData.cards;
+
+        if (cards[index].isMatched || cards[index].isFlipped || flipped[0] === index || (flipped[0] !== -1 && flipped[1] !== -1)) return;
+
+        if (flipped[0] === -1) {
+            flipped[0] = index;
+            await update(roomRef, { flippedIndexes: flipped });
+        } else if (flipped[1] === -1) {
+            flipped[1] = index;
+            await update(roomRef, { flippedIndexes: flipped });
+            checkMatch(flipped);
+        }
+    }
+
+    function checkMatch(flipped) {
+        let cards = localRoomData.cards;
+        const idx1 = flipped[0];
+        const idx2 = flipped[1];
+
+        if (cards[idx1].symbol === cards[idx2].symbol) {
+            setTimeout(async () => {
+                cards[idx1].isMatched = true;
+                cards[idx2].isMatched = true;
+                
+                const currentScore = localRoomData.players[playerId].score || 0;
+                const allMatched = cards.every(c => c.isMatched);
+                const nextStatus = allMatched ? "finished" : "playing";
+
+                await update(ref(db, `rooms/${currentRoomId}/players/${playerId}`), { score: currentScore + 1 });
+                await update(roomRef, { cards: cards, flippedIndexes: [-1, -1], status: nextStatus });
+            }, 800);
+        } else {
+            setTimeout(async () => {
+                const order = localRoomData.turnOrder;
+                const currentIdx = order.indexOf(playerId);
+                const nextPlayerIdx = (currentIdx + 1) % order.length;
+                const nextPlayerId = order[nextPlayerIdx];
+
+                await update(roomRef, { cards: cards, flippedIndexes: [-1, -1], turn: nextPlayerId });
+            }, 1200);
+        }
+    }
+
+    function announceWinner(data) {
+        turnIndicator.innerText = "🏁 انتهت الجولة!";
+        let players = data.players;
+        let winnerName = "";
+        let maxScore = -1;
+
+        Object.keys(players).forEach(pId => {
+            if (players[pId].score > maxScore) {
+                maxScore = players[pId].score;
+                winnerName = players[pId].name;
+            }
+        });
+
+        alert(`🎉 رائع! انتهت اللعبة، الفائز هو: ${winnerName} بمجموع ${maxScore} نقاط!`);
+    }
+</script>
+
+</body>
+</html>
